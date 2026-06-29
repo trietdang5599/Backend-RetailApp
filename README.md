@@ -2,6 +2,15 @@
 
 .NET 9 Clean Architecture backend for retail product management.
 
+## Live Demo
+
+**Production URL:** https://backend-retailapp.onrender.com
+
+> Hosted on Render (free tier — cold start ~30s after inactivity)
+
+- Swagger UI: https://backend-retailapp.onrender.com/swagger
+- Base API: https://backend-retailapp.onrender.com/api
+
 ## Tech Stack
 
 - **ASP.NET Core 9** — REST API
