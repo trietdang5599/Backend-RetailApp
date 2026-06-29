@@ -88,6 +88,8 @@ public static class DependencyInjection
         // Native StackExchange.Redis format: host:port,password=...,ssl=true
         var options = ConfigurationOptions.Parse(connStr);
         options.AbortOnConnectFail = false;
+        options.SslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                             | System.Security.Authentication.SslProtocols.Tls13;
         return options;
     }
 }
