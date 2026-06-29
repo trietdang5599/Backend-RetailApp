@@ -39,19 +39,25 @@ public static class DependencyInjection
                 sp.GetRequiredService<IMongoClient>(),
                 config["MongoDB:DatabaseName"] ?? "product_management"));
 
-        // Redis — supports both rediss:// URL and StackExchange.Redis native format
+        // Redis — fallback to InMemory if Redis unavailable
         var redisConn = config.GetConnectionString("Redis");
+        var redisConnected = false;
         if (!string.IsNullOrWhiteSpace(redisConn))
         {
-            var redisConfig = ToRedisConfig(redisConn);
-            services.AddSingleton<IConnectionMultiplexer>(_ =>
-                ConnectionMultiplexer.Connect(redisConfig));
-            services.AddStackExchangeRedisCache(opt => opt.ConfigurationOptions = redisConfig);
-            services.AddScoped<ICacheService, RedisCacheService>();
+            try
+            {
+                var redisConfig = ToRedisConfig(redisConn);
+                var mux = ConnectionMultiplexer.Connect(redisConfig);
+                services.AddSingleton<IConnectionMultiplexer>(mux);
+                services.AddStackExchangeRedisCache(opt => opt.ConfigurationOptions = redisConfig);
+                services.AddScoped<ICacheService, RedisCacheService>();
+                redisConnected = true;
+            }
+            catch { /* fall through to InMemory */ }
         }
-        else
+        if (!redisConnected)
         {
-            services.AddDistributedMemoryCache();
+            services.AddMemoryCache();
             services.AddScoped<ICacheService, InMemoryCacheService>();
         }
 
