@@ -17,6 +17,7 @@ public class ProductRepository : IProductRepository
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<Product?> GetBySlugAsync(string slug, CancellationToken ct = default) =>
@@ -24,6 +25,7 @@ public class ProductRepository : IProductRepository
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(p => p.Slug == slug, ct);
 
     public async Task<(IEnumerable<Product> Items, int TotalCount)> GetPagedAsync(
@@ -42,6 +44,7 @@ public class ProductRepository : IProductRepository
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images.Where(i => i.IsPrimary))
+            .AsSplitQuery()
             .AsNoTracking()
             .AsQueryable();
 
