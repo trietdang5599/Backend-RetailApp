@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using ProductManagement.API.Extensions;
 using ProductManagement.Application.Products.Commands.CreateProduct;
 using ProductManagement.Infrastructure;
 using ProductManagement.Infrastructure.Persistence;
@@ -44,24 +45,26 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // RateLimiting is built into ASP.NET Core 7+ — no separate package needed
 builder.Services.AddRateLimiter(opt =>
 {
+    var permitLimit = builder.Configuration.GetValue<int>("RateLimiting:PermitLimit", 100);
+    var windowSeconds = builder.Configuration.GetValue<int>("RateLimiting:WindowSeconds", 60);
+    var queueLimit = builder.Configuration.GetValue<int>("RateLimiting:QueueLimit", 0);
+
     opt.AddFixedWindowLimiter("api", lim =>
     {
-        lim.Window = TimeSpan.FromMinutes(1);
-        lim.PermitLimit = 100;
+        lim.Window = TimeSpan.FromSeconds(windowSeconds);
+        lim.PermitLimit = permitLimit;
         lim.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        lim.QueueLimit = 5;
+        lim.QueueLimit = queueLimit;
     });
+
+    opt.RejectionStatusCode = 429;
 });
 
 builder.Services.AddResponseCompression(opt => opt.EnableForHttps = true);
 
 var app = builder.Build();
 
-app.Use(async (ctx, next) =>
-{
-    try { await next(ctx); }
-    catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested) { }
-});
+app.UseAppMiddleware();
 
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Product Management API v1"));
@@ -73,13 +76,16 @@ if (!app.Environment.IsDevelopment())
 app.UseRateLimiter();
 app.UseResponseCompression();
 app.UseSerilogRequestLogging();
-app.MapControllers();
+app.MapControllers().RequireRateLimiting("api");
 
-// Auto-migrate on startup
-using (var scope = app.Services.CreateScope())
+// Auto-migrate on startup (skipped in Testing — InMemory DB uses EnsureCreated instead)
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 }
 
 app.Run();
+
+public partial class Program { }
