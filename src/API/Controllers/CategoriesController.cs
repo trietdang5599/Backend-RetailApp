@@ -16,9 +16,9 @@ public class CategoriesController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<CategoryDto>), 200)]
-    public async Task<IActionResult> GetAll([FromQuery] bool tree = true, CancellationToken ct = default)
+    public async Task<IActionResult> GetAll([FromQuery] bool tree = true, [FromQuery] bool leafOnly = false, CancellationToken ct = default)
     {
-        var result = await _mediator.Send(new GetCategoriesQuery(tree), ct);
+        var result = await _mediator.Send(new GetCategoriesQuery(tree, leafOnly), ct);
         return Ok(result);
     }
 

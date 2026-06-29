@@ -20,6 +20,7 @@ public class CreateCategoryValidator : AbstractValidator<CreateCategoryCommand>
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Description).MaximumLength(500).When(x => x.Description != null);
+        RuleFor(x => x.ParentId).NotNull().WithMessage("Must select a parent category (Tops, Bottoms, or Accessories)");
     }
 }
 
@@ -40,8 +41,11 @@ public class CreateCategoryHandler : IRequestHandler<CreateCategoryCommand, Resu
         if (!validation.IsValid)
             return Result<CategoryDto>.ValidationFailure(validation.Errors.Select(e => e.ErrorMessage));
 
-        if (request.ParentId.HasValue && await _uow.Categories.GetByIdAsync(request.ParentId.Value, ct) is null)
+        var parent = await _uow.Categories.GetByIdAsync(request.ParentId!.Value, ct);
+        if (parent is null)
             return Result<CategoryDto>.Failure("Parent category not found");
+        if (parent.ParentId.HasValue)
+            return Result<CategoryDto>.Failure("Can only create sub-categories under top-level categories (Tops, Bottoms, Accessories)");
 
         var slug = string.IsNullOrWhiteSpace(request.Slug)
             ? request.Name.ToLowerInvariant().Replace(" ", "-").Where(c => char.IsLetterOrDigit(c) || c == '-').Aggregate("", (a, c) => a + c)
