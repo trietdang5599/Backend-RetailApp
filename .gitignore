@@ -18,3 +18,7 @@ appsettings.Local.json
 
 # OS
 .DS_Store
+
+#documentation
+document.md
+document_answers.md
