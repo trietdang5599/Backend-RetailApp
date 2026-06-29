@@ -39,13 +39,14 @@ public static class DependencyInjection
                 sp.GetRequiredService<IMongoClient>(),
                 config["MongoDB:DatabaseName"] ?? "product_management"));
 
-        // Redis
+        // Redis — supports both rediss:// URL and StackExchange.Redis native format
         var redisConn = config.GetConnectionString("Redis");
         if (!string.IsNullOrWhiteSpace(redisConn))
         {
+            var redisConfig = ToRedisConfig(redisConn);
             services.AddSingleton<IConnectionMultiplexer>(_ =>
-                ConnectionMultiplexer.Connect(redisConn));
-            services.AddStackExchangeRedisCache(opt => opt.Configuration = redisConn);
+                ConnectionMultiplexer.Connect(redisConfig));
+            services.AddStackExchangeRedisCache(opt => opt.ConfigurationOptions = redisConfig);
             services.AddScoped<ICacheService, RedisCacheService>();
         }
         else
@@ -60,5 +61,33 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
+    }
+
+    // Converts rediss://user:pass@host:port to ConfigurationOptions (handles Upstash URL format)
+    private static ConfigurationOptions ToRedisConfig(string connStr)
+    {
+        if (connStr.StartsWith("redis://") || connStr.StartsWith("rediss://"))
+        {
+            var uri = new Uri(connStr);
+            var cfg = new ConfigurationOptions
+            {
+                EndPoints = { { uri.Host, uri.Port > 0 ? uri.Port : 6380 } },
+                Ssl = connStr.StartsWith("rediss://"),
+                SslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                             | System.Security.Authentication.SslProtocols.Tls13,
+                AbortOnConnectFail = false,
+            };
+            if (!string.IsNullOrEmpty(uri.UserInfo))
+            {
+                var parts = uri.UserInfo.Split(':', 2);
+                if (parts.Length == 2) cfg.Password = Uri.UnescapeDataString(parts[1]);
+            }
+            return cfg;
+        }
+
+        // Native StackExchange.Redis format: host:port,password=...,ssl=true
+        var options = ConfigurationOptions.Parse(connStr);
+        options.AbortOnConnectFail = false;
+        return options;
     }
 }
