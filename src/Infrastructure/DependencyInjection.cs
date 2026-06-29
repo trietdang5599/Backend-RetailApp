@@ -16,10 +16,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        // PostgreSQL — support both Npgsql format and postgres:// URL (e.g. from Render)
-        var pgConn = ToNpgsqlConnectionString(config.GetConnectionString("PostgreSQL")!);
+        // PostgreSQL
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(pgConn,
+            options.UseNpgsql(config.GetConnectionString("PostgreSQL"),
                 npgsql => npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
 
         // MongoDB
@@ -51,23 +50,5 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
-    }
-
-    // Converts postgres://user:pass@host:port/db to Npgsql key=value format
-    private static string ToNpgsqlConnectionString(string connStr)
-    {
-        if (!connStr.StartsWith("postgres://") && !connStr.StartsWith("postgresql://"))
-            return connStr;
-
-        var uri = new Uri(connStr);
-        var userInfo = uri.UserInfo.Split(':');
-        var builder = new System.Text.StringBuilder();
-        builder.Append($"Host={uri.Host};");
-        if (uri.Port > 0) builder.Append($"Port={uri.Port};");
-        builder.Append($"Database={uri.AbsolutePath.TrimStart('/')};");
-        builder.Append($"Username={userInfo[0]};");
-        if (userInfo.Length > 1) builder.Append($"Password={userInfo[1]};");
-        builder.Append("SSL Mode=Require;Trust Server Certificate=true;");
-        return builder.ToString();
     }
 }
