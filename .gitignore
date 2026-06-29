@@ -1,0 +1,20 @@
+# Build output
+bin/
+obj/
+*.user
+
+# Secrets / local config
+appsettings.Development.json
+appsettings.Local.json
+
+# Rider / VS / VS Code
+.idea/
+.vs/
+.vscode/
+*.DotSettings.user
+
+# EF Core migration snapshots from tools
+*.db
+
+# OS
+.DS_Store
