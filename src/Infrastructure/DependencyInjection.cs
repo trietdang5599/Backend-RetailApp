@@ -26,7 +26,12 @@ public static class DependencyInjection
         {
             var connStr = config.GetConnectionString("MongoDB")!;
             var settings = MongoClientSettings.FromConnectionString(connStr);
-            settings.SslSettings = new SslSettings { EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 };
+            settings.SslSettings = new SslSettings
+            {
+                EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                                    | System.Security.Authentication.SslProtocols.Tls13
+            };
+            settings.AllowInsecureTls = true;
             return new MongoClient(settings);
         });
         services.AddScoped<IProductAttributeService>(sp =>
