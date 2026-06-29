@@ -53,6 +53,9 @@ public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, Result
                 request.Description, request.ShortDescription, request.SalePrice,
                 request.SKU, request.Brand, request.Status);
 
+            // Use CancellationToken.None inside the transaction so client disconnect
+            // cannot cancel a commit mid-flight and leave data in an inconsistent state.
+
             // Full-replace variant collection:
             // Step A — mark existing variants Deleted + update product scalars, then SaveChanges.
             // Step B — add new variants via DbSet (no navigation fixup issues), then SaveChanges.
@@ -60,7 +63,7 @@ public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, Result
             {
                 _uow.Products.RemoveVariants(product.Variants.ToList());
                 product.ClearVariants();
-                await _uow.SaveChangesAsync(ct); // DELETE old variants + UPDATE product
+                await _uow.SaveChangesAsync(CancellationToken.None); // DELETE old variants + UPDATE product
 
                 if (request.Variants.Count > 0)
                 {
@@ -68,14 +71,14 @@ public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, Result
                         .Select(v => ProductVariant.Create(
                             product.Id, v.StockQuantity, v.Size, v.Color, v.ColorHex, v.SKU, v.PriceAdjustment))
                         .ToList();
-                    await _uow.Products.AddVariantsAsync(newVariants, ct);
-                    await _uow.SaveChangesAsync(ct); // INSERT new variants
+                    await _uow.Products.AddVariantsAsync(newVariants, CancellationToken.None);
+                    await _uow.SaveChangesAsync(CancellationToken.None); // INSERT new variants
                     // EF relationship fixup already added newVariants to product.Variants
                 }
             }
             else
             {
-                await _uow.SaveChangesAsync(ct); // No variant change — just UPDATE product scalars
+                await _uow.SaveChangesAsync(CancellationToken.None); // No variant change — just UPDATE product scalars
             }
 
             // Attributes live in MongoDB — update separately (no EF save needed unless docId changes)
@@ -83,17 +86,17 @@ public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, Result
             {
                 if (product.AttributeDocumentId is not null)
                 {
-                    await _attributeService.UpdateAttributesAsync(product.AttributeDocumentId, request.Attributes, ct);
+                    await _attributeService.UpdateAttributesAsync(product.AttributeDocumentId, request.Attributes, CancellationToken.None);
                 }
                 else
                 {
-                    var docId = await _attributeService.SaveAttributesAsync(product.Id, request.Attributes, ct);
+                    var docId = await _attributeService.SaveAttributesAsync(product.Id, request.Attributes, CancellationToken.None);
                     product.SetAttributeDocumentId(docId);
-                    await _uow.SaveChangesAsync(ct); // persist the new docId linkback
+                    await _uow.SaveChangesAsync(CancellationToken.None); // persist the new docId linkback
                 }
             }
 
-            await _uow.CommitTransactionAsync(ct);
+            await _uow.CommitTransactionAsync(CancellationToken.None);
 
             await _cache.RemoveByPatternAsync("products:*", ct);
             await _cache.RemoveAsync($"product:{request.Id}", ct);

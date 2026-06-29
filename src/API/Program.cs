@@ -24,8 +24,14 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddCors(opt => opt.AddPolicy("AllowFrontend", p =>
-    p.WithOrigins(builder.Configuration["AllowedOrigins"]?.Split(',') ?? ["http://localhost:5173"])
-     .AllowAnyHeader().AllowAnyMethod()));
+{
+    if (builder.Environment.IsDevelopment())
+        p.SetIsOriginAllowed(origin => new Uri(origin).Host == "localhost")
+         .AllowAnyHeader().AllowAnyMethod();
+    else
+        p.WithOrigins(builder.Configuration["AllowedOrigins"]?.Split(',') ?? [])
+         .AllowAnyHeader().AllowAnyMethod();
+}));
 
 // MediatR 12 — registration via DI extensions built in
 builder.Services.AddMediatR(cfg =>
@@ -60,6 +66,7 @@ app.Use(async (ctx, next) =>
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Product Management API v1"));
 
+app.UseRouting();
 app.UseCors("AllowFrontend");
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
