@@ -23,7 +23,12 @@ public static class DependencyInjection
 
         // MongoDB
         services.AddSingleton<IMongoClient>(_ =>
-            new MongoClient(config.GetConnectionString("MongoDB")));
+        {
+            var connStr = config.GetConnectionString("MongoDB")!;
+            var settings = MongoClientSettings.FromConnectionString(connStr);
+            settings.SslSettings = new SslSettings { EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 };
+            return new MongoClient(settings);
+        });
         services.AddScoped<IProductAttributeService>(sp =>
             new ProductAttributeService(
                 sp.GetRequiredService<IMongoClient>(),
